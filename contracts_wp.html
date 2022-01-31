@@ -83,7 +83,7 @@ td { text-align: left;  padding-left: 0.4em; border: none;  padding-right: 0.4em
 		<a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2388r4.html">[P2388R4]</a> or
     <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2461r1.pdf">[P2461R1]</a>.
 
-<p> The goal in this paper is to structure the proposal in a different way in order 
+<p> The goal in this paper is to structure the proposal in a different way, in order 
     to reflect what SG21 has consensus on and what remains a controversy. We treat the following as open issues:</p>
     
 <ol>
@@ -102,7 +102,10 @@ td { text-align: left;  padding-left: 0.4em; border: none;  padding-right: 0.4em
 
 <ol>
   <li>We now disallow contract annotations on function redeclarations and overriding function declarations.</li>
-	<li>Included poll results on including postcondiions in the MVP.</li>
+	<li>Clarified what happens when a contract predicate contains a call to a virtual function.</li>
+	<li>Included poll results on including postconditions in the MVP.</li>
+	<li>Explained why we need mixed translation modes to be implementation-defined.</li>
+	<li>Removed the text which suggested that implementing runtime precondition checks inside function bodies is a necessity.</li>
 </ol>
 
 
@@ -180,11 +183,24 @@ int select(int i, int j)
       </li>
 </ol>
 
-<p> The implementation may, but does not have to, allow the translation of different translation units in different modes. Too many modes are not 
+<p> Too many modes are not 
     necessary for the minimum contract implementation. The <em>No_eval</em> is required to provide no-overhead guarantee. The 
-    <em>Eval_and_abort</em> is required to actually assign any semantics to contract annotations.
+    <em>Eval_and_abort</em> is required, because if we only had <em>No_eval</em> mode, 
+		users could start using contract annotations as (syntax-checked) comments, and might forget that these should always evaluate to <code>true</code>
+		in the correct programs.
     </p>
     
+<p> The implementation may, but does not have to, allow the translation of different translation units in different modes. If this is the case, 
+    the semantics of the program is implementation-defined. Because of this "implementtion-defined" we do not have to dictate what happens when the
+    header file with the following contents is <code>#include</code>d in two translation units:</p>
+		
+<pre>
+inline void f(int i)
+{
+  ASSERT(i != 0); <em>// which translation mode?</em>
+}
+</pre>
+
 
 <h3><a id="pro.lok">3.3. Name look-up<span class="link">{pro.lok}</span></a></h3>
 
@@ -269,10 +285,10 @@ public:
 <pre>using fpa = int(*)(int) PRE(true); <em>// error</em>
 
 using fptr = int(*)(int);
-int (int i) PRE(i &gt;= 0);
+int f(int i) PRE(i &gt;= 0);
 
 fptr fp = f;  <em>// OK</em>
-fp(1);        <em>// precondition is checked</em>
+fp(1);        <em>// precondition is checked in Eval_and_abort mode</em>
 </pre>
 
 <p> In other words, contract annotations are not part of function type.
@@ -289,23 +305,18 @@ int f(int i)
 }
 </pre>
 
-<p> The consequence of this behavior is that an implementation cannot check
-    the precondition in the place where function is called. The check has to
-    be performed inside the function. Therefore, it is a reasonable
-    implementation strategy to implement the precondition check inside the
-    function in case it is called indirectly, but where the function is
-    called directly, check it in the caller, in order to provide the source
-    location that is the culprit of contract violation. This may sometimes
-    result in checking the same precondition twice.</p>
+<p> The consequence of allowing this behavior is that an implementation
+    cannot check the precondition at the call site for indirect calls. 
+		The check has to be performed either inside the function or in a thunk.</p>
 
-<p> The same mechanism works for function wrappers:</p>
+<p> We propose the same behavior, for the same reasons, for function wrappers:</p>
 
 <pre>
 using fp = int(*)(int);
 int f(int i) PRE(i &gt;= 0);
 
 function&lt;int(int)&gt; fp = f;  <em>// OK</em>
-fp(1);   <em>// precondition is checked</em>
+fp(1);   <em>// precondition is checked in Eval_and_abort mode</em>
 </pre>
 	
 	
@@ -367,9 +378,32 @@ int main()
     if the virtual function in the base class doesn't have a corresponding
     contract annotation.
     </p>
+		
+<p> If a predicate in the contract annotation of function <code>f</code> contains a call to a virtual function,
+    The virtual function call is resolved as if the function was called inside function <code>f</code>:</p>
 
+<pre>
+struct Window 
+{
+  Window() POST(isClosed());
+  virtual bool isClosed() const;
+  virtual void open() PRE(isClosed());
+}; 
 
-<p> This means that we do not allow the preconditions in the overriding function to be "wider"
+struct SpecialWindow : Window
+{
+  bool isClosed() const override;
+  void open() override;
+};
+
+int main()
+{
+  SpecialWindow w {}; <em>// calls Window::isClosed(), because virtual function calls are not resolved in constructors </em>
+  w.open();           <em>// calls SpecialWindow::isClosed(), because isClosed is virtual</em>
+}
+</pre>
+
+<p> As a consequence of the above decsions, we do not allow the preconditions in the overriding function to be "wider"
     and the postconditions to be "narrower" than in the overridden function,
     even though this idea &mdash; one aspect of the Liskov Substitution Principle &mdash; is well explored and implemented in other languages.
 		The reason for this is that we do not yet have a good understanding of what effect this principle should have on the feature design.
@@ -571,16 +605,18 @@ int select(int i, int j)   <em>// second declaration</em>
 
 <h3><a id="con.eff">4.2. Removal and duplication of side effects in predicates<span class="link">{con.eff}</span></a></h3>
 
-<p> An implementation may need to evaluate the same predicate in a precondition twice. For direct calls,
-    it is desired to insert the instrumentation code in the caller: this gives better diagnostics, 
-		so it is preferred whenever possible. However this is impossible when a function is called indirectly,
-    either trough a pointer or <code>std::function</code>: from the pointer signature we do not know if a function called
-		has a precondition or not. Because of these cases the precondition check may need to be compiled into the function.
-		This results in the situation where a function is called directly, but the body is in a different translation unit, and we want
-		to make the check in the caller for better diagnostic, and inside the body to cover the indirect calls. we want to enable such implementation strategies.
-		The end result for the programmer is that when the predicate has side effects, these effects occur twice.</p>
 
-<p> For performance reasons an implementation may want not to evaluate the predicate, if it already knows what its result would be.
+<p> Some implementation strategies may need to evaluate the same predicate in a precondition twice.
+    For direct function calls, an implementation can easily insert the instrumentation code in the caller.
+		This is desired as it gives better diagnostics. However, this is impossible when a function is called indirectly,
+    either through a pointer or <code>std::function</code>: from the pointer signature we do not know if a function called
+		has a precondition or not. To address that case, one thing an implementation could do is to compile the pre- and 
+		post-condition checks into the function body. This would give the result that the pre-/post-conditions are checked normally
+    when the function is called through an indirection, but are checked twice when the function is called directly: 
+		once in the caller, and once inside the function body. We want to enable such implementation strategies.		
+		The consequence for the programmer is that when the predicate has side effects, these effects occur twice.</p>
+
+<p> For performance reasons, an implementation may want not to evaluate the predicate, if it already knows what its result would be.
     This can happen when a function that produces a value has sufficiently similar postcondition <code>p</code> to the precondition of another function
     that subsequently consume the same value, and we do not see the body of <code>p</code>:</p>
 		
@@ -789,10 +825,13 @@ void vector::push_back(T const&amp; val)
 </pre>	
 	
 
-<h2><a name="ack">5. References
+<h2><a name="ack">5. Acknowledgements
     <span class="link">{ack}</span></a></h2>
 		
-<p> This paper is a summary of SG21 discussions; all SG21 members contributed to this paper. John McFarlane suggeted the idea to make implcit copies of trivilly-copyable types.</p>
+<p> This paper is a summary of SG21 discussions; all SG21 members contributed to this paper. 
+    John McFarlane suggeted the idea to make implcit copies of trivilly-copyable types. 
+		Walter E. Brown pointed out that putting pre-/post-condition checks inside function bodies is not a necessity, 
+    and that alternte implementtions &mdash; such as a thunk &mdash; exist.</p>
 
 
 <h2><a name="ref">6. References
