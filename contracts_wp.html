@@ -37,6 +37,7 @@ blockquote.std    { color: #000000; background-color: #F1F1F1;  border: 1px soli
 blockquote.stddel { text-decoration: line-through;  color: #000000; background-color: #FFEBFF;  border: 1px solid #ECD7EC;  padding-left: 0.5em; padding-right: 0.5em; ; }
 blockquote.stdins { text-decoration: underline;  color: #000000; background-color: #C8FFC8;  border: 1px solid #B3EBB3; padding: 0.5em; }
 table.header { border: 0px; border-spacing: 0;  margin-left: 0px; font-style: normal; }
+table.poll { border: 1px solid black; border-spacing: 0px;  margin-left: 0px; font-style: normal; }
 table { border: 1px solid black; border-spacing: 0px;  margin-left: auto; margin-right: auto; }
 th { text-align: left; vertical-align: top;  padding-left: 0.4em; border: none;  padding-right: 0.4em; border: none; }
 td { text-align: left;  padding-left: 0.4em; border: none;  padding-right: 0.4em; border: none; }
@@ -46,17 +47,17 @@ td { text-align: left;  padding-left: 0.4em; border: none;  padding-right: 0.4em
 
 </style>
 
-<title>Contract support — Working Paper</title>
+<title>Contract support &mdash; Working Paper</title>
 
 </head>
 <body>
 
 <table class="header"><tbody>
   <tr>
-    <th>Document number:&nbsp;&nbsp;</th><th> </th><td>P2521R0</td>
+    <th>Document number:&nbsp;&nbsp;</th><th> </th><td>D2521R1</td>
   </tr>
   <tr>
-    <th>Date:&nbsp;&nbsp;</th><th> </th><td>2022-01-17</td>
+    <th>Date:&nbsp;&nbsp;</th><th> </th><td>2022-01-31</td>
   </tr>
   <tr>
     <th>Audience:&nbsp;&nbsp;</th><th> </th><td>SG21</td>
@@ -75,14 +76,14 @@ td { text-align: left;  padding-left: 0.4em; border: none;  padding-right: 0.4em
 </tbody></table>
 
 
-<h1>Contract support — Working Paper</h1>
+<h1>Contract support &mdash; Working Paper</h1>
 
 <p> This paper is a yet another proposal to add a minimum contract support framework to C++. It proposes nothing that hasn't
     already been described in either 
 		<a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2388r4.html">[P2388R4]</a> or
     <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2461r1.pdf">[P2461R1]</a>.
 
-</p><p> The goal in this paper is to structure the proposal in a different way in order 
+<p> The goal in this paper is to structure the proposal in a different way in order 
     to reflect what SG21 has consensus on and what remains a controversy. We treat the following as open issues:</p>
     
 <ol>
@@ -91,28 +92,37 @@ td { text-align: left;  padding-left: 0.4em; border: none;  padding-right: 0.4em
 <li>The treatment of non-reference function parameters referenced in postconditions.</li>
 </ol>
 
-<p> We assume that the reader is already famliar with <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2388r4.html">[P2388R4]</a>.</p>
+<p> We assume that the reader is already familiar with <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2388r4.html">[P2388R4]</a>.</p>
+
+
+<h2><a name="rev">0. Revision history <span class="link">{rev}</span></a></h2>
+
+
+<h3><a name="rev.r01">0.1. R0 → R1<span class="link">{rev.r01}</span></a></h3>
+
+<ol>
+  <li>We now disallow contract annotations on function redeclarations and overriding function declarations.</li>
+	<li>Included poll results on including postcondiions in the MVP.</li>
+</ol>
 
 
 <h2><a id="mot">1. Motivation <span class="link">{mot}</span></a></h2>
 
-<p> The motivation for adding contract support framework to C++ is to 
-enable the programmers to define in a formal way what constitutes
-    a contact violation (an therefore a bug) in their programs. This 
-information can be later used by different tools to perform
-    static or dynamic analysis of the program, add instrumentation code,
- or generate documentation or programmer hints in the IDE.
+<p> The motivation for adding contract support framework to C++ is to enable the programmers to define in a formal way what constitutes
+    a contact violation (an therefore a bug) in their programs. This information can be later used by different tools to perform
+    static or dynamic analysis of the program, add instrumentation code, or generate documentation or programmer hints in the IDE.
 		It has been described in more detail in <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2388r4.html">[P2388R4]</a>.</p>
 
-<p> The motivation for producing another paper is to focus on documenting the consensus of SG21.</p><p>
+<p> The motivation for producing another paper is to focus on documenting the consensus of SG21.<p>
 
 
 
-</p><h2><a id="not">2. Notation <span class="link">{not}</span></a></h2>
+<h2><a id="not">2. Notation <span class="link">{not}</span></a></h2>
 
 <p>Because the choice of syntax for contract annotations has no consensus yet, in this paper we use placeholder notation:</p>
 
-<pre>int select(int i, int j)
+<pre>
+int select(int i, int j)
   PRE(i &gt;= 0)               <em>// precondition</em>
   PRE(j &gt;= 0)
   POST(r: r &gt;= 0)           <em>// postcondition; r names the return value</em>
@@ -138,17 +148,22 @@ information can be later used by different tools to perform
 <li>Assertions.</li>
 </ol>
 
-<p>Although it is possible to add only preconditions to the language and
- gain minimal benefit, we believe that only the three components
-   added together bring sufficient value to warrant the modification of 
-the language. We also believe that the syntax and semantics of 
-preconditions
-   must be compatible with these of the postconditions. So even if the 
-preconditions were to be added in isolation, we would have to
-   have a polished design for postconditions. This means that 
-preconditions are blocked on the postcondition design even for the "only
- preconditions" variant.
+<p>Although it is possible to add only preconditions to the language and gain minimal benefit, we believe that only the three components
+   added together bring sufficient value to warrant the modification of the language. We also believe that the syntax and semantics of preconditions
+   must be compatible with these of the postconditions. So even if the preconditions were to be added in isolation, we would have to
+   have a polished design for postconditions. This means that preconditions are blocked on the postcondition design even for the "only preconditions" variant.
    </p>
+	 
+<p> The corresponding SG21 poll on 2021-12-14:</p>
+
+<p>Poll: Postconditions should be in the MVP at this time.</p>
+
+<table class="poll">
+<tr><td>SF</td><td>F</td><td>N</td><td>A</td><td>SA</td></tr>
+<tr><td>1</td><td>7</td><td>3</td><td>4</td><td>1</td></tr>
+</table>
+ 
+
 
 
 <h3><a id="pro.mod">3.2. Two translation modes<span class="link">{pro.mod}</span></a></h3>
@@ -165,9 +180,7 @@ preconditions are blocked on the postcondition design even for the "only
       </li>
 </ol>
 
-<p> The implementation may, but does not have to, allow the translation 
-of different translation units in different modes. Too many modes are 
-not 
+<p> The implementation may, but does not have to, allow the translation of different translation units in different modes. Too many modes are not 
     necessary for the minimum contract implementation. The <em>No_eval</em> is required to provide no-overhead guarantee. The 
     <em>Eval_and_abort</em> is required to actually assign any semantics to contract annotations.
     </p>
@@ -287,7 +300,8 @@ int f(int i)
 
 <p> The same mechanism works for function wrappers:</p>
 
-<pre>using fp = int(*)(int);
+<pre>
+using fp = int(*)(int);
 int f(int i) PRE(i &gt;= 0);
 
 function&lt;int(int)&gt; fp = f;  <em>// OK</em>
@@ -300,9 +314,11 @@ fp(1);   <em>// precondition is checked</em>
 
 <p> When a virtual function is overridden, the overriding function has the
     same set of preconditions and postconditions as the overridden function,
-    whether the contract annotations are repeated in the overriding function or not:</p>
+    te program is ill-formed if you try to declare contract annotations in the 
+		overriding function, even if they look identical to the ones in the overridden function:</p>
 
-<pre>struct Base {
+<pre>
+struct Base {
   virtual void f() PRE(p1());
 };
 
@@ -311,7 +327,7 @@ struct Deriv1 : Base {
 };
 
 struct Deriv2 : Base {
-  void f() override PRE(p1());  <em>// ok: Deriv2::f has the same precondition as Base</em>
+  void f() override PRE(p1());  <em>// error: Deriv2::f has the precondition redeclared</em>
 };
 
 struct Deriv3 : Base {
@@ -319,13 +335,12 @@ struct Deriv3 : Base {
 };
 </pre>
 		
-<p> You can omit
-    contract annotations in the overriding function. The overriding function
-    then has the same contract annotations as the virtual function in the base
+<p> The overriding function has the same contract annotations as the virtual function in the base
     class, and the names in the predicates are looked up in the context of the
     base class.</p>
 
-<pre>static const int N = 1; <em>// #1</em>
+<pre>
+static const int N = 1; <em>// #1</em>
 
 struct Base
 {
@@ -353,46 +368,16 @@ int main()
     contract annotation.
     </p>
 
-<p> You can declare a contract annotation in the overriding function, but it has
-    to be identical (modulo the names of function parameters) to the
-    corresponding contract in the overridden function. However, the program is
-    ill formed, no diagnostic required, if name lookup in the predicate finds
-    different entities than if the name lookup were performed in the context
-    of the base class:</p>
 
-<pre>static const int N = 1; <em>// #1</em>
-
-struct Base
-{
-  virtual void f()
-    PRE(N == 1)
-    POST(sizeof(*this) &lt; 100);
-};
-
-template &lt;int N&gt;       <em>// N is shadowed</em>
-struct Deriv : Base
-{
-  int i[100];
-
-  void f() override
-    PRE(N == 1)                 <em>// IF-NDR, finds different N</em>
-    POST(sizeof(*this) &lt; 100);  <em>// IF-NDR, inspects different class</em>
-};
-</pre>
-
-<p> This means that we do not allow the preconditions in the overriding 
-function to be "wider"
-    and the postconditions to be "narrower" than in the overridden 
-function,
-    even though this idea — one aspect of the Liskov Substitution 
-Principle — is well explored and implemented in other languages.
-		The reason for this is that we do not yet have a good understanding of
- what effect this principle should have on the feature design.
-		Should it be just a "best practice" that the programmers are taught? 
-Or should it be enforced by the language? But how?
+<p> This means that we do not allow the preconditions in the overriding function to be "wider"
+    and the postconditions to be "narrower" than in the overridden function,
+    even though this idea &mdash; one aspect of the Liskov Substitution Principle &mdash; is well explored and implemented in other languages.
+		The reason for this is that we do not yet have a good understanding of what effect this principle should have on the feature design.
+		Should it be just a "best practice" that the programmers are taught? Or should it be enforced by the language? But how?
 		We could think of a number of ways. Given the declarations:</p>
 		
-<pre>struct Base {
+<pre>
+struct Base {
   virtual void f() PRE(p1());
 };
 
@@ -408,7 +393,7 @@ struct Deriv : Base {
     the precondition in the overriding function has the form <code>p1() || p2()</code>? </li>
 <li> Or should the compiler accept this code and evaluate <code>p1() &amp;&amp; p2()</code> when <code>Deriv::f</code> is called through the <code>Base</code> interface,
      but evaluate predicate <code>p2()</code> when <code>Deriv::f</code> is called directly?     		
-</li></ol>
+</ol>
 		
 <p>Option 1 is clearly impossible. The other options might be implementable, but it is more like a guess,
     as we know of no implementation experience with these.</p>
@@ -426,7 +411,8 @@ struct Deriv : Base {
 <p> In this proposal the predicates in contract annotations are <em>not</em> in the
     immediate context of the function. They behave similarly to exception specification:</p>
 
-<pre>template &lt;std::regular T&gt;
+<pre>
+template &lt;std::regular T&gt;
 void f(T v, T u)
   PRE(v &lt; u); <em>// not part of std::regular</em>
 
@@ -455,10 +441,8 @@ static_assert(!has_f&lt;std::complex&lt;float&gt;&gt;); <em>// ill-formed: has_f
     aborts the application even more abruptly: close to calling <code>std::abort()</code>, but we do not require 
 		the actual call to <code>std::abort()</code>, as the function may not be present in freestanding. </p>
 
-<p>	We do not encourage the implementations to allow the users to 
-install custom contract violation handlers, nor do we
-    specify any interface describing how this is done. However, we do 
-not actively forbid the implementations form performing some logic,
+<p>	We do not encourage the implementations to allow the users to install custom contract violation handlers, nor do we
+    specify any interface describing how this is done. However, we do not actively forbid the implementations form performing some logic,
 		as long as it never throws or calls <code>longjmp()</code>.
     </p>
 
@@ -490,23 +474,41 @@ not actively forbid the implementations form performing some logic,
     approach.</p>
 		
 
-<h3><a name="pro.dec">3.10. Contract annotations upon the first declaration<span class="link">{pro.dec}</span></a></h3>
+<h3><a name="pro.dec">3.10. Contract annotations upon the first and subsequent declarations<span class="link">{pro.dec}</span></a></h3>
 
 <p> We require that if a given function <code>f</code> has declared preconditions and postconditions, they shall be visible in the first
-    declaration of <code>f</code> in a translation unit (TU): otherwise the program is ill-formed. Subsequent declarations can either omit 
-    contract annotations ore repeat them in the identical form (modulo parameter names). If <code>f</code> is declared in more than one TU,
+    declaration of <code>f</code> in a translation unit (TU): otherwise the program is ill-formed. Subsequent declarations must omit 
+    contract annotations. If <code>f</code> is declared in more than one TU,
     the corresponding first declarations of <code>f</code> shall be identical (modulo parameter names): otherwise the program is ill-formed with no
     diagnostic required. As a consequence, the following is illegal:</p>
 		
-<pre>int select(int i, int j);  <em>// first declaration</em>
+<pre>
+int select(int i, int j);  <em>// first declaration</em>
 	
 int select(int i, int j)   <em>// second declaration</em>
-  PRE(i &gt;= 0)              <em>// error: initial decl had different (no) contract annotations</em>
+  PRE(i &gt;= 0)              <em>// error: initial decl has no contract annotations</em>
   PRE(j &gt;= 0)
   POST(r: r &gt;= 0); 
 </pre>
 
-<p>The reason for this restriction is implementability issues, similar to those for default function arguments.</p>
+<p>The following is also illegal</p>
+
+<pre>
+int select(int i, int j)  <em>// first declaration</em>
+  PRE(i &gt;= 0)
+  PRE(j &gt;= 0)
+  POST(r: r &gt;= 0);
+	
+int select(int i, int j)   <em>// second declaration</em>
+  PRE(i &gt;= 0)              <em>// error: contract annotations on redeclaration</em>
+  PRE(j &gt;= 0)
+  POST(r: r &gt;= 0); 
+</pre>
+
+<p> The reason for this restriction is implementability issues, similar to those for default function arguments.
+    This decision departs from <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p0542r5.html">[P0542R5]</a>,
+		which allowed putting odr-identical contract annotations on refeclarations. The reason we do not allow contract annotations on
+		redeclarations is because this way we avoid the reason to define the notion of being "odr-identical".</p>
 
 
 <h2><a id="con">4. Controversial aspects <span class="link">{con}</span></a></h2>	
@@ -552,15 +554,12 @@ int select(int i, int j)   <em>// second declaration</em>
     <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2487r0.html">[P2487R0]</a>.
 		</p>
 
-<p> The primary argument in favor of quasi-attribute notation is to 
-stress semantic characteristics similar to attributes. 
-    The common understanding of attributes is that they are hints for 
-generating warnings or performing optimizations. Their removal,
-		should not affect the correctness of the program (even though it is 
-easy to construct an example using <code>no_unique_address</code>
+<p> The primary argument in favor of quasi-attribute notation is to stress semantic characteristics similar to attributes. 
+    The common understanding of attributes is that they are hints for generating warnings or performing optimizations. Their removal,
+		should not affect the correctness of the program (even though it is easy to construct an example using <code>no_unique_address</code>
 		that contradicts this claim).</p>
 		
-<p> Contract annotations — at least one model thereof — shares similar features: they are hints for tools for generating warnings
+<p> Contract annotations &mdash; at least one model thereof &mdash; shares similar features: they are hints for tools for generating warnings
     or emitting an instrumentation code. If these annotations are removed <em>from a correct program</em> (one that does not violate the declared
 		contract annotations), this does not affect the correctness of the program.
     </p> 
@@ -570,28 +569,23 @@ easy to construct an example using <code>no_unique_address</code>
 		syntax for one of the future extensions: making copies of function arguments for use in postconditions.
 
 
-</p><h3><a id="con.eff">4.2. Removal and duplication of side effects in predicates<span class="link">{con.eff}</span></a></h3>
+<h3><a id="con.eff">4.2. Removal and duplication of side effects in predicates<span class="link">{con.eff}</span></a></h3>
 
 <p> An implementation may need to evaluate the same predicate in a precondition twice. For direct calls,
     it is desired to insert the instrumentation code in the caller: this gives better diagnostics, 
 		so it is preferred whenever possible. However this is impossible when a function is called indirectly,
-    either trough a pointer or <code>std::function</code>: from the 
-pointer signature we do not know if a function called
-		has a precondition or not. Because of these cases the precondition 
-check may need to be compiled into the function.
-		This results in the situation where a function is called directly, but
- the body is in a different translation unit, and we want
-		to make the check in the caller for better diagnostic, and inside the 
-body to cover the indirect calls. we want to enable such implementation 
-strategies.
-		The end result for the programmer is that when the predicate has side 
-effects, these effects occur twice.</p>
+    either trough a pointer or <code>std::function</code>: from the pointer signature we do not know if a function called
+		has a precondition or not. Because of these cases the precondition check may need to be compiled into the function.
+		This results in the situation where a function is called directly, but the body is in a different translation unit, and we want
+		to make the check in the caller for better diagnostic, and inside the body to cover the indirect calls. we want to enable such implementation strategies.
+		The end result for the programmer is that when the predicate has side effects, these effects occur twice.</p>
 
 <p> For performance reasons an implementation may want not to evaluate the predicate, if it already knows what its result would be.
     This can happen when a function that produces a value has sufficiently similar postcondition <code>p</code> to the precondition of another function
     that subsequently consume the same value, and we do not see the body of <code>p</code>:</p>
 		
-<pre>bool p(int); <em>// defined in a different TU</em>
+<pre>
+bool p(int); <em>// defined in a different TU</em>
 
 int produce() POST(r: p(r));
 void consume(int i) PRE(p(i));
@@ -601,10 +595,8 @@ int main() {
 }
 </pre>
 
-<p> This seems redundant to call the same predicate twice. Of course, this seems so only if <code>p()</code>
- doesn't have side effects.
-    If it does, and the program (or the programmer) relies on them, this
- elision can make the comprehension of the program harder,
+<p> This seems redundant to call the same predicate twice. Of course, this seems so only if <code>p()</code> doesn't have side effects.
+    If it does, and the program (or the programmer) relies on them, this elision can make the comprehension of the program harder,
 		and the effects surprising.</p>
 
 <p> Both	<a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2388r4.html">[P2388R4]</a> and
@@ -612,20 +604,16 @@ int main() {
 		evaluation of the predicates. However, concerns have been expressed about it.</p>
 
 
-<p> Note that <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2388r4.html">[P2388R4]</a>
- additionally proposes the 
-    "partial elision" of side effects in a predicate. We received a 
-feedback that the group is against it, so this "partial elision" is 
+<p> Note that <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2388r4.html">[P2388R4]</a> additionally proposes the 
+    "partial elision" of side effects in a predicate. We received a feedback that the group is against it, so this "partial elision" is 
 		not considered in this paper.</p>		
 
 
 <h3><a id="con.arg">4.3. Function parameters in postconditions<span class="link">{con.arg}</span></a></h3>
 
 
-<p> The model that we used for contract annotations is simple: we 
-execute a predicate at certain specified points in time 
-    (for instance, just before the function call for preconditions) and 
-the predicate observes the state of the program at that moment.
+<p> The model that we used for contract annotations is simple: we execute a predicate at certain specified points in time 
+    (for instance, just before the function call for preconditions) and the predicate observes the state of the program at that moment.
 		This model works intuitively except for one case: when function:</p>
 	
 <ol>
@@ -664,14 +652,10 @@ assert(min &lt;= r &amp;&amp; r &lt;= max); <em>// even though this is satisfied
 </pre>
 
 <p> How is this problem addressed in other languages?
-    In D, this problem has been ignored: postconditions like the one 
-above give false positive or false negative results.
-		In ADA this problem does not occur: this is due to the way the 
-function arguments are designed. In ADA, for each 
-		function argument, the programmer has to specify if it is IN or OUT or
- INOUT. The OUT and INOUT parameters correspond to reference
-    parameters in C++, so there is no problem here. The IN parameters, 
-on the other hand, are immutable, so there is no question of 
+    In D, this problem has been ignored: postconditions like the one above give false positive or false negative results.
+		In ADA this problem does not occur: this is due to the way the function arguments are designed. In ADA, for each 
+		function argument, the programmer has to specify if it is IN or OUT or INOUT. The OUT and INOUT parameters correspond to reference
+    parameters in C++, so there is no problem here. The IN parameters, on the other hand, are immutable, so there is no question of 
     changing them inside the function: IN parameters correspond to <code>const</code> by-value parameters in C++.		
 </p>	
 	
@@ -684,27 +668,23 @@ on the other hand, are immutable, so there is no question of
 <li><a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2388r4.html">[P2388R4]</a> and <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2461r1.pdf">[P2461R1]</a> proposes to imitate the solution from ADA: if the postcondition uses the non-reference prameters: require them to be <code>const</code> objects.</li>
 </ol>
 
-<p> Additionally, <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2461r1.pdf">[P2461R1]</a>
- proposes for the future revisions the ability
-    for the programmer to request that copies of designated function 
-parameters be made. These copies could also be referenced when
+<p> Additionally, <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2461r1.pdf">[P2461R1]</a> proposes for the future revisions the ability
+    for the programmer to request that copies of designated function parameters be made. These copies could also be referenced when
 		the postcondition is evaluated:
 		</p>
 
-<pre>int generate(int lo, int hi)
+<pre>
+int generate(int lo, int hi)
   pre{ lo &lt;= hi }
   post[lo, hi](r){ lo &lt;= r &amp;&amp; r &lt;= hi };
 </pre>
 
-<p> The lambda-introducer syntax should make it immediately clear, even 
-for the uninitiated programmers, that a copy of function parameters is 
-being made.</p>
+<p> The lambda-introducer syntax should make it immediately clear, even for the uninitiated programmers, that a copy of function parameters is being made.</p>
 
-<p> The quasi-attribute notation also allows this as a future extension,
- however this would require a new notation, which comes with a 
-complexity and an aesthetical cost:</p>
+<p> The quasi-attribute notation also allows this as a future extension, however this would require a new notation, which comes with a complexity and an aesthetical cost:</p>
 
-<pre>int generate(int lo, int hi)
+<pre>
+int generate(int lo, int hi)
   [[pre: lo &lt;= hi ]]
   [[post r, old_lo = lo, old_hi = hi: old_lo &lt;= r &amp;&amp; r &lt;= old_hi ]];
 	
@@ -718,14 +698,10 @@ int generate(int lo, int hi)
 <p> Thus, the decision how to address the issue of by-value arguments in postconditions is somewhat tied to the choice of syntax.
     But perhaps not as much as one might think at first.</p>
 
-<p> We could allow postconditions to reference <code>const</code> 
-by-value parameters in postconditions in the MVP. 
-    This would address a reasonable subset of real-life use cases 
-immediately, and at the same time not prevent the addition of 
-    "copies on demnd" in the future. We could go even further and 
-require the compiler to do implicit copies for trivially-copyable
-    types. This would create a "hybrid" solution that is the least 
-intrusive for the programmers:</p>
+<p> We could allow postconditions to reference <code>const</code> by-value parameters in postconditions in the MVP. 
+    This would address a reasonable subset of real-life use cases immediately, and at the same time not prevent the addition of 
+    "copies on demnd" in the future. We could go even further and require the compiler to do implicit copies for trivially-copyable
+    types. This would create a "hybrid" solution that is the least intrusive for the programmers:</p>
 
 <pre>int generate(int lo, int hi)
   PRE(lo &lt;= hi)
@@ -754,9 +730,10 @@ BigInt generate(BigInt lo, BigInt hi)
 
 <p>Another question is a slight difference between <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2388r4.html">[P2388R4]</a> or
     <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2461r1.pdf">[P2461R1]</a>. The former paper allows by-value parameter to omit
-		<code>const</code> on the function decaration, but only requires it on function definition:</p><p>
+		<code>const</code> on the function decaration, but only requires it on function definition:<p>
 		
-</p><pre>// P2388R4:
+<pre>
+// P2388R4:
 
 int generate(int lo, int hi)
   PRE(lo &lt;= hi)
@@ -773,13 +750,11 @@ int generate(int const lo, int const hi) <em>// ok: prameters are const in defin
 		declarations has no effect. 
 </p>
 
-<p> One reason for this additional restrction, is that the quasi-lambda 
-solution may require certain mangling of function names in the presence 
-of
-    lambds, and the lambda type that captures by reference may be 
-affected based on whether by-value function arguments are const or not:</p>
+<p> One reason for this additional restrction, is that the quasi-lambda solution may require certain mangling of function names in the presence of
+    lambds, and the lambda type that captures by reference may be affected based on whether by-value function arguments are const or not:</p>
 
-<pre>int generate(int lo, int hi)
+<pre>
+int generate(int lo, int hi)
   pre{ lo &lt;= hi }
   post <em>/*[&amp;]*/</em> (r){ r: lo &lt;= r &amp;&amp; r &lt;= hi }; <em>// differemt mangling</em>
 	
@@ -793,15 +768,13 @@ int generate(int const lo, int const hi)
 
 <p> An additional question that one might want to answer is that if we allowed in postconditions arguments 
     that are either references or const or trivially-copyable, are the remaining cases sufficient to 
-		motivate the addition of quasi-lambda syntax?</p><p>
+		motivate the addition of quasi-lambda syntax?<p>
 
-</p><p> It should be noted <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2461r1.pdf">[P2461R1]</a>
- offers more motivation than
-    the quasi-lambda syntax than solving the problem of function 
-arguments in postconditions. The notable exmple is the support for 
-"oldof" values:</p>
+<p> It should be noted <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2461r1.pdf">[P2461R1]</a> offers more motivation than
+    the quasi-lambda syntax than solving the problem of function arguments in postconditions. The notable exmple is the support for "oldof" values:</p>
 
-<pre>void vector::push_back(T const&amp; val)
+<pre>
+void vector::push_back(T const&amp; val)
   POST(r: size() == OLDOF(size()) + 1);
 	
 // in P2461R1, post-MVP:
@@ -819,9 +792,7 @@ void vector::push_back(T const&amp; val)
 <h2><a name="ack">5. References
     <span class="link">{ack}</span></a></h2>
 		
-<p> This paper is a summary of SG21 discussions; all SG21 members 
-contributed to this paper. John McFarlane suggeted the idea to make 
-implcit copies of trivilly-copyable types.</p>
+<p> This paper is a summary of SG21 discussions; all SG21 members contributed to this paper. John McFarlane suggeted the idea to make implcit copies of trivilly-copyable types.</p>
 
 
 <h2><a name="ref">6. References
@@ -857,7 +828,10 @@ implcit copies of trivilly-copyable types.</p>
   <li>[P2487R0] — Andrzej Krzemieński, "Attribute-like syntax for contract annotations" <br>
       (<a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2487r0.html">http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2487r0.html</a>).
       </li>		
-				
+			
+			
+			
+			
 </ul>
 
 
