@@ -57,7 +57,7 @@ td { text-align: left;  padding-left: 0.4em; border: none;  padding-right: 0.4em
     <th>Document number:&nbsp;&nbsp;</th><th> </th><td>D2521R1</td>
   </tr>
   <tr>
-    <th>Date:&nbsp;&nbsp;</th><th> </th><td>2022-01-31</td>
+    <th>Date:&nbsp;&nbsp;</th><th> </th><td>2022-02-01</td>
   </tr>
   <tr>
     <th>Audience:&nbsp;&nbsp;</th><th> </th><td>SG21</td>
@@ -112,7 +112,7 @@ td { text-align: left;  padding-left: 0.4em; border: none;  padding-right: 0.4em
 <h2><a id="mot">1. Motivation <span class="link">{mot}</span></a></h2>
 
 <p> The motivation for adding contract support framework to C++ is to enable the programmers to define in a formal way what constitutes
-    a contact violation (an therefore a bug) in their programs. This information can be later used by different tools to perform
+    a contact violation (and therefore a bug) in their programs. This information can be later used by different tools to perform
     static or dynamic analysis of the program, add instrumentation code, or generate documentation or programmer hints in the IDE.
 		It has been described in more detail in <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2388r4.html">[P2388R4]</a>.</p>
 
@@ -151,7 +151,7 @@ int select(int i, int j)
 <li>Assertions.</li>
 </ol>
 
-<p>Although it is possible to add only preconditions to the language and gain minimal benefit, we believe that only the three components
+<p>Although it is possible to add only preconditions to the language and gain some benefit, we believe that only the three components
    added together bring sufficient value to warrant the modification of the language. We also believe that the syntax and semantics of preconditions
    must be compatible with these of the postconditions. So even if the preconditions were to be added in isolation, we would have to
    have a polished design for postconditions. This means that preconditions are blocked on the postcondition design even for the "only preconditions" variant.
@@ -191,7 +191,7 @@ int select(int i, int j)
     </p>
     
 <p> The implementation may, but does not have to, allow the translation of different translation units in different modes. If this is the case, 
-    the semantics of the program is implementation-defined. Because of this "implementtion-defined" we do not have to dictate what happens when the
+    the semantics of the program are implementation-defined. Because of this "implementation-defined" we do not have to dictate what happens when the
     header file with the following contents is <code>#include</code>d in two translation units:</p>
 		
 <pre>
@@ -208,10 +208,11 @@ inline void f(int i)
     if the function had one. In particular, this means that private members can appear in pre/post-conditions.</p>
 		
 <p> Programming guidelines often recommend that in contract predicates of public member
-    functions one should only use the public interface of the class. This is in case the
-    class user needs to manually check if the contract is satisfied for an object whose
-    state is not known. However, this is only a guideline, and enforcing it in the language
-    would break other use cases that do not subscribe to the above advice.
+    functions one should only use the public interface of the class. This is to enable the user of the class 
+		to check the precondition in case the object state is not known. However, this is only a guideline, and enforcing it in the language
+    would break other use cases that do not subscribe to the above advice. Also,
+		precondition checks on member functions may be impossible to write using the public interface of the class
+		because the contracts of the accessors might lead to recursive contract checks even when accessors themselves are not recursive.
     </p>
 
 <p> In general, the users must <em>ensure</em> that the precondition of the called function is satisfied.
@@ -325,7 +326,7 @@ fp(1);   <em>// precondition is checked in Eval_and_abort mode</em>
 
 <p> When a virtual function is overridden, the overriding function has the
     same set of preconditions and postconditions as the overridden function,
-    te program is ill-formed if you try to declare contract annotations in the 
+    the program is ill-formed if you try to declare contract annotations in the 
 		overriding function, even if they look identical to the ones in the overridden function:</p>
 
 <pre>
@@ -380,7 +381,7 @@ int main()
     </p>
 		
 <p> If a predicate in the contract annotation of function <code>f</code> contains a call to a virtual function,
-    The virtual function call is resolved as if the function was called inside function <code>f</code>:</p>
+    the virtual function call is resolved as if the function was called inside function <code>f</code>:</p>
 
 <pre>
 struct Window 
@@ -433,7 +434,7 @@ struct Deriv : Base {
     as we know of no implementation experience with these.</p>
 
 <p> However, the decision to add support for this feature can be deferred for later, because the way we specify the feature now
-    (ill formed, no diagnostic required) remains open for future extensions in any of the three directions.
+    (ill formed) remains open for future extensions in any of the three directions.
 		</p> 		
 
 	
@@ -463,8 +464,8 @@ static_assert(!has_f&lt;std::complex&lt;float&gt;&gt;); <em>// ill-formed: has_f
 <p> As a consequence, we may have a function template that works well for
     a given type, but stops working the moment we add a contract annotation.
     This also affects how concepts would be taught: a good concept should express
-    not only the operations that are necessary in the <em>implementation</em>
-    of the generic algorithms, but also these that are necessary in the
+    not only the requirements that are necessary in the <em>implementation</em>
+    of the generic algorithms, but also those that are necessary in the
     specification of contract annotations in these algorithms.
     </p>
 
@@ -481,7 +482,10 @@ static_assert(!has_f&lt;std::complex&lt;float&gt;&gt;); <em>// ill-formed: has_f
     </p>
 
 <p> The above distinction reflects the fundamental difference between the two situations.
-    Throwing from the predicate is a random, unpredictable, but correct situation in the program. Maybe a comparison
+    Throwing from a predicate is analogous to throwing from a noexcept function &mdash; 
+		an expected response to an unhandled exception thrown in procedural code &mdash; 
+		but it does not signal that the program state itself is corrupt, or that the program has a logic error, which is what a contract violation detects.
+		Maybe a comparison
     had to allocate memory, and this allocation failed, because today the server is exceptionally busy. We want to
     handle it the way we usually handle exceptions when there is no suitable handler: <code>std::terminate()</code>
     is an exception handler, with its unique control flow, however harsh.</p>
@@ -506,6 +510,9 @@ static_assert(!has_f&lt;std::complex&lt;float&gt;&gt;); <em>// ill-formed: has_f
     incorrect state, performing IO operations may pose a security risk.
     As the primary focus of this proposal is safety, we choose a conservative
     approach.</p>
+		
+<p> Note that breaking into a debugger upon contract violation is a valid way to handle these situations,
+    as it takes a single instruction and does not depend on program state.</p>
 		
 
 <h3><a name="pro.dec">3.10. Contract annotations upon the first and subsequent declarations<span class="link">{pro.dec}</span></a></h3>
@@ -541,7 +548,7 @@ int select(int i, int j)   <em>// second declaration</em>
 
 <p> The reason for this restriction is implementability issues, similar to those for default function arguments.
     This decision departs from <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p0542r5.html">[P0542R5]</a>,
-		which allowed putting odr-identical contract annotations on refeclarations. The reason we do not allow contract annotations on
+		which allowed putting odr-identical contract annotations on redeclarations. The reason we do not allow contract annotations on
 		redeclarations is because this way we avoid the reason to define the notion of being "odr-identical".</p>
 
 
@@ -589,7 +596,7 @@ int select(int i, int j)   <em>// second declaration</em>
 		</p>
 
 <p> The primary argument in favor of quasi-attribute notation is to stress semantic characteristics similar to attributes. 
-    The common understanding of attributes is that they are hints for generating warnings or performing optimizations. Their removal,
+    The common understanding of attributes is that they are hints for generating warnings or performing optimizations. Their removal
 		should not affect the correctness of the program (even though it is easy to construct an example using <code>no_unique_address</code>
 		that contradicts this claim).</p>
 		
@@ -613,7 +620,7 @@ int select(int i, int j)   <em>// second declaration</em>
 		has a precondition or not. To address that case, one thing an implementation could do is to compile the pre- and 
 		post-condition checks into the function body. This would give the result that the pre-/post-conditions are checked normally
     when the function is called through an indirection, but are checked twice when the function is called directly: 
-		once in the caller, and once inside the function body. We want to enable such implementation strategies.		
+		once in the caller, and once inside the function body. We may want to enable such implementation strategies.		
 		The consequence for the programmer is that when the predicate has side effects, these effects occur twice.</p>
 
 <p> For performance reasons, an implementation may want not to evaluate the predicate, if it already knows what its result would be.
@@ -736,7 +743,7 @@ int generate(int lo, int hi)
 
 <p> We could allow postconditions to reference <code>const</code> by-value parameters in postconditions in the MVP. 
     This would address a reasonable subset of real-life use cases immediately, and at the same time not prevent the addition of 
-    "copies on demnd" in the future. We could go even further and require the compiler to do implicit copies for trivially-copyable
+    "copies on demand" in the future. We could go even further and require the compiler to do implicit copies for trivially-copyable
     types. This would create a "hybrid" solution that is the least intrusive for the programmers:</p>
 
 <pre>int generate(int lo, int hi)
@@ -781,13 +788,13 @@ int generate(int const lo, int const hi) <em>// ok: prameters are const in defin
 
 <p> The only thing we need here is that the compiler will ultimately prevent any modifications in the function body.
     In contrast, <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2461r1.pdf">[P2461R1]</a> 
-		requires that even the declartions have function arguments declared with <code>const</code>, even though programmers
+		requires that even the declarations have function arguments declared with <code>const</code>, even though programmers
 		have been taught for years that the addition or the omission of <code>const</code> in by-value arguments in function
 		declarations has no effect. 
 </p>
 
-<p> One reason for this additional restrction, is that the quasi-lambda solution may require certain mangling of function names in the presence of
-    lambds, and the lambda type that captures by reference may be affected based on whether by-value function arguments are const or not:</p>
+<p> One reason for this additional restriction, is that the quasi-lambda solution may require certain mangling of function names in the presence of
+    lambdas, and the lambda type that captures by reference may be affected based on whether by-value function arguments are const or not:</p>
 
 <pre>
 int generate(int lo, int hi)
@@ -821,7 +828,7 @@ void vector::push_back(T const&amp; val)
 // in P2388R4, post-MVP:
 
 void vector::push_back(T const&amp; val)
-  [[post old_size = size(): size() == oldof_size + 1]];
+  [[post old_size = size(): size() == old_size + 1]];
 </pre>	
 	
 
@@ -829,9 +836,9 @@ void vector::push_back(T const&amp; val)
     <span class="link">{ack}</span></a></h2>
 		
 <p> This paper is a summary of SG21 discussions; all SG21 members contributed to this paper. 
-    John McFarlane suggeted the idea to make implcit copies of trivilly-copyable types. 
+    John McFarlane suggeted the idea to make implicit copies of trivilly-copyable types. 
 		Walter E. Brown pointed out that putting pre-/post-condition checks inside function bodies is not a necessity, 
-    and that alternte implementtions &mdash; such as a thunk &mdash; exist.</p>
+    and that alternate implementations &mdash; such as a thunk &mdash; exist.</p>
 
 
 <h2><a name="ref">6. References
