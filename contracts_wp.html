@@ -57,7 +57,7 @@ td { text-align: left;  padding-left: 0.4em; border: none;  padding-right: 0.4em
     <th>Document number:&nbsp;&nbsp;</th><th> </th><td>D2521R1</td>
   </tr>
   <tr>
-    <th>Date:&nbsp;&nbsp;</th><th> </th><td>2022-02-01</td>
+    <th>Date:&nbsp;&nbsp;</th><th> </th><td>2022-02-03</td>
   </tr>
   <tr>
     <th>Audience:&nbsp;&nbsp;</th><th> </th><td>SG21</td>
@@ -324,14 +324,17 @@ fp(1);   <em>// precondition is checked in Eval_and_abort mode</em>
 <h3><a name="pro.vir">3.6. Virtual functions
         <span class="link">{pro.vir}</span></a></h3>
 
-<p> When a virtual function is overridden, the overriding function has the
+<p> Contract annotations may appear in virtual member function declarations,
+    but only in non-overriding functions. 
+    When a virtual function is overridden, the overriding function has implicitly the
     same set of preconditions and postconditions as the overridden function,
     the program is ill-formed if you try to declare contract annotations in the 
-		overriding function, even if they look identical to the ones in the overridden function:</p>
+		overriding function explicitly, even if they look identical to the ones in the overridden function.
+		</p>
 
 <pre>
 struct Base {
-  virtual void f() PRE(p1());
+  virtual void f() PRE(p1());   <em>// ok: introducing the precondition</em>
 };
 
 struct Deriv1 : Base {
@@ -374,11 +377,6 @@ int main()
 <p> The precondition in the overriding function is <code>N == 1</code>,
     but the name lookup is performed in the context of class <code>Base</code>,
     so it sees the global variable <code>N</code> declared in line #1.</p>
-
-<p> You cannot declare a contract annotation in the overriding function
-    if the virtual function in the base class doesn't have a corresponding
-    contract annotation.
-    </p>
 		
 <p> If a predicate in the contract annotation of function <code>f</code> contains a call to a virtual function,
     the virtual function call is resolved as if the function was called inside function <code>f</code>:</p>
@@ -476,7 +474,7 @@ static_assert(!has_f&lt;std::complex&lt;float&gt;&gt;); <em>// ill-formed: has_f
     aborts the application even more abruptly: close to calling <code>std::abort()</code>, but we do not require 
 		the actual call to <code>std::abort()</code>, as the function may not be present in freestanding. </p>
 
-<p>	We do not encourage the implementations to allow the users to install custom contract violation handlers, nor do we
+<p>	We do not require the implementations to allow the users to install custom contract violation handlers, nor do we
     specify any interface describing how this is done. However, we do not actively forbid the implementations form performing some logic,
 		as long as it never throws or calls <code>longjmp()</code>.
     </p>
@@ -496,7 +494,7 @@ static_assert(!has_f&lt;std::complex&lt;float&gt;&gt;); <em>// ill-formed: has_f
     violated, and we can be sure the program contains a bug, calling a user-installed function may be unsafe,
     and can pose a security risk.</p>
 
-<p> More, <code>std::terminate()</code> is not available in freestanding implementations. </p>
+<p> Moreover, <code>std::terminate()</code> is not available in freestanding implementations. </p>
 
 
 <h3><a name="pro.log">3.9. No runtime error message<span class="link">{pro.log}</span></a></h3>
