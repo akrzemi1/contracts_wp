@@ -54,10 +54,10 @@ td { text-align: left;  padding-left: 0.4em; border: none;  padding-right: 0.4em
 
 <table class="header"><tbody>
   <tr>
-    <th>Document number:&nbsp;&nbsp;</th><th> </th><td>D2521R1</td>
+    <th>Document number:&nbsp;&nbsp;</th><th> </th><td>P2521R1</td>
   </tr>
   <tr>
-    <th>Date:&nbsp;&nbsp;</th><th> </th><td>2022-02-03</td>
+    <th>Date:&nbsp;&nbsp;</th><th> </th><td>2022-02-15</td>
   </tr>
   <tr>
     <th>Audience:&nbsp;&nbsp;</th><th> </th><td>SG21</td>
@@ -101,11 +101,16 @@ td { text-align: left;  padding-left: 0.4em; border: none;  padding-right: 0.4em
 <h3><a name="rev.r01">0.1. R0 → R1<span class="link">{rev.r01}</span></a></h3>
 
 <ol>
-  <li>We now disallow contract annotations on function redeclarations and overriding function declarations.</li>
+  <li>We now disallow contract annotations on function re-declarations and overriding function declarations.</li>
 	<li>Clarified what happens when a contract predicate contains a call to a virtual function.</li>
 	<li>Included poll results on including postconditions in the MVP.</li>
 	<li>Explained why we need mixed translation modes to be implementation-defined.</li>
 	<li>Removed the text which suggested that implementing runtime precondition checks inside function bodies is a necessity.</li>
+	<li>Described more special cases related to virtual functions: when a base class is a template parameter, and when 
+	    a function overrides more than one virtual function.</li>
+	<li>Clarified that we are aiming at freestanding implementations.</li>
+	<li>No longer defining look-up in contract annotations by analogy with <code>noexcept</code>.</li>
+	<li>Mixing translation modes is IFNDR.</li>
 </ol>
 
 
@@ -114,9 +119,10 @@ td { text-align: left;  padding-left: 0.4em; border: none;  padding-right: 0.4em
 <p> The motivation for adding contract support framework to C++ is to enable the programmers to define in a formal way what constitutes
     a contact violation (and therefore a bug) in their programs. This information can be later used by different tools to perform
     static or dynamic analysis of the program, add instrumentation code, or generate documentation or programmer hints in the IDE.
-		It has been described in more detail in <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2388r4.html">[P2388R4]</a>.</p>
+		It has been described in more detail in <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2388r4.html">[P2388R4]</a>.
+		We want contracts to be available in freestanding implementations.</p>
 
-<p> The motivation for producing another paper is to focus on documenting the consensus of SG21.<p>
+<p> The motivation for producing this paper is to focus on documenting the consensus of SG21.<p>
 
 
 
@@ -190,8 +196,8 @@ int select(int i, int j)
 		in the correct programs.
     </p>
     
-<p> The implementation may, but does not have to, allow the translation of different translation units in different modes. If this is the case, 
-    the semantics of the program are implementation-defined. Because of this "implementation-defined" we do not have to dictate what happens when the
+<p> Can different translation units be translated in different modes? If we allowed it, 
+    we would have to answer questions like, what happens when the
     header file with the following contents is <code>#include</code>d in two translation units:</p>
 		
 <pre>
@@ -201,10 +207,17 @@ inline void f(int i)
 }
 </pre>
 
+<p> We do not want to prevent the implementations from enabling the "mixed mode" if they know how to answer the questions like the one above.
+    At the same time, we do not want to force the implementaitons to offer the mixed mode. We also do not want to force them to diagnose
+		the "mixed mode" situations, as this may not be easy or practical. Therefore, we propose for the MVP that the translation of different translation units in different modes in one program is ill-formed, no diagnostic required. This guarantees that the MVP is reasonably small an implementable, and leaves maximum freedom for the future additions. Ideally, we would also like to encourage the implementaitons to inform the programmers whether they support
+		the mixed mode or not.</p> 
+
+
 
 <h3><a id="pro.lok">3.3. Name look-up<span class="link">{pro.lok}</span></a></h3>
 
-<p> We propose that names referred in preconditions and postconditions are looked up as if they appeared in a <code>noexcept</code> specification,
+<p> We propose that names referred in preconditions and postconditions are looked up as if they appeared 
+    in a <code>decltype</code> in a <em>trailing-return-type</em>,
     if the function had one. In particular, this means that private members can appear in pre/post-conditions.</p>
 		
 <p> Programming guidelines often recommend that in contract predicates of public member
@@ -435,7 +448,58 @@ struct Deriv : Base {
     (ill formed) remains open for future extensions in any of the three directions.
 		</p> 		
 
+
+<h4><a name="pro.vir.tmp">3.6.1 Class templates
+        <span class="link">{pro.vir.tmp}</span></a></h4>
+				
+<p> The same restrictions for virtual functions apply for class templates, except that compilation errors might be deferred till 
+    template instantiation time:</p>
 	
+<pre>
+struct Base1 {
+  virtual void f1(int i);
+};
+
+struct Base2 {
+  virtual void f2(int i);
+};
+
+template &lt;typename Base&gt;
+struct Deriv : Base {
+  void f2(int i) PRE(i &gt; 0); <em>// ok, so far</em>
+};
+
+Deriv&lt;Base1&gt; d1 {}; <em>// ok</em>
+Deriv&lt;Base2&gt; d2 {}; <em>// compiler error</em>
+</pre>	
+
+<h4><a name="pro.vir.two">3.6.2 Inheriting multiple contracts
+        <span class="link">{pro.vir.two}</span></a></h4>
+
+<p> In case a member function overrides two functions from two base classess
+    with possibly two different set of pre- and postconditions,
+    its precondition is the logical conjunction of the preconditions in the overridden functions,
+    and it postcondition is the logical conjunction of the postconditions in the 
+    overridden functions:
+		</p>
+		
+<pre>
+struct Base1 {
+  virtual void f(int i) PRE(p1()) POST(r1());
+};
+
+struct Base2 {
+  virtual void f(int i) PRE(p2()) POST(r2());
+};
+
+struct Deriv : Base1, Base2 {
+  void 2(int i) override
+    <em>// inherited:</em>
+    <em>// PRE(p1()) PRE(p2()) POST(r1()) POST(r2())</em>
+  ;
+};
+</pre>
+
 	
 <h3><a name="pro.imm">3.7. Contract annotations and the immediate context
     <span class="link">{pro.imm}</span></a></h3>
@@ -476,7 +540,8 @@ static_assert(!has_f&lt;std::complex&lt;float&gt;&gt;); <em>// ill-formed: has_f
 
 <p>	We do not require the implementations to allow the users to install custom contract violation handlers, nor do we
     specify any interface describing how this is done. However, we do not actively forbid the implementations form performing some logic,
-		as long as it never throws or calls <code>longjmp()</code>.
+		as long as it never throws or calls <code>longjmp()</code>. 
+		This makes the MVP proposal smaller; but it remians open for the contract violation handler support in the future.
     </p>
 
 <p> The above distinction reflects the fundamental difference between the two situations.
@@ -829,6 +894,17 @@ void vector::push_back(T const&amp; val)
   [[post old_size = size(): size() == old_size + 1]];
 </pre>	
 	
+	<!--
+<h2><a name="ope">5. Open issues
+    <span class="link">{ope}</span></a></h2>
+
+<h3><a name="ope.two">5.1. Open issues
+    <span class="link">{ope.two}</span></a></h3>
+		
+<p> There is a situation where a class has two bases and each of thee bases has
+    a virtual funciton with the same name and signature, but with different contract 
+		annotations:</p>
+-->
 
 <h2><a name="ack">5. Acknowledgements
     <span class="link">{ack}</span></a></h2>
