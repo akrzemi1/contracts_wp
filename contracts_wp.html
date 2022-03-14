@@ -54,10 +54,10 @@ td { text-align: left;  padding-left: 0.4em; border: none;  padding-right: 0.4em
 
 <table class="header"><tbody>
   <tr>
-    <th>Document number:&nbsp;&nbsp;</th><th> </th><td>P2521R1</td>
+    <th>Document number:&nbsp;&nbsp;</th><th> </th><td>D2521R2</td>
   </tr>
   <tr>
-    <th>Date:&nbsp;&nbsp;</th><th> </th><td>2022-02-15</td>
+    <th>Date:&nbsp;&nbsp;</th><th> </th><td>2022-03-15</td>
   </tr>
   <tr>
     <th>Audience:&nbsp;&nbsp;</th><th> </th><td>SG21</td>
@@ -98,6 +98,7 @@ td { text-align: left;  padding-left: 0.4em; border: none;  padding-right: 0.4em
 <h2><a name="rev">0. Revision history <span class="link">{rev}</span></a></h2>
 
 
+
 <h3><a name="rev.r01">0.1. R0 → R1<span class="link">{rev.r01}</span></a></h3>
 
 <ol>
@@ -111,6 +112,16 @@ td { text-align: left;  padding-left: 0.4em; border: none;  padding-right: 0.4em
 	<li>Clarified that we are aiming at freestanding implementations.</li>
 	<li>No longer defining look-up in contract annotations by analogy with <code>noexcept</code>.</li>
 	<li>Mixing translation modes is IFNDR.</li>
+</ol>
+
+
+<h3><a name="rev.r02">0.2. R1 → R2<span class="link">{rev.r02}</span></a></h3>
+
+<ol>
+  <li>Described the proposed evaluation order of preconditions and postconditions. See section <a href="#pro.ord">{pro.ord}</a>.</li>
+	<li>Non-reference function parameters named in the postcondition must be declared <code>const</code>. See section <a href="#pro.arg">{pro.arg}</a>.</li>
+	<li>Explained why reading the value of function arguments instead of function parameters cannot solve the problem of non-reference function parameters 
+      referenced in postconditions. See section <a href="#pro.arg.out">{pro.arg.out}</a>.</li>
 </ol>
 
 
@@ -213,8 +224,26 @@ inline void f(int i)
 		the mixed mode or not.</p> 
 
 
+<h3><a id="pro.ord">3.3. Evaluation order<span class="link">{pro.ord}</span></a></h3>
 
-<h3><a id="pro.lok">3.3. Name look-up<span class="link">{pro.lok}</span></a></h3>
+<p> We propose the following evaluation order for preconditions and postconditions when a function is invoked. </p>
+
+<ol>
+<li>Function parameters are initialized.</li>
+<li>Preconditions are evaluated.</li>
+<li>Evaluation of the function body begins. (This includes constructor initialization list, function-try-block.)</li>
+<li>The return value, if any, is produced, creating an object in the caller or through the temporary materialization. </li>
+<li>The destructors of automatic objects are called.</li>
+<li>The postconditions are evaluated. (The postcondition can already see the returned object, and still see the function parameters.)</li>
+<li>The destructors of function parameters are called.</li>
+</ol> 
+
+<p> In this proposal throwing from the contract predicate triggers a call to <code>std::terminate()</code>, 
+    therefore there is no way to observe whether preconditions and postconditions are called inside or outside the function.
+    </p>		
+
+
+<h3><a id="pro.lok">3.4. Name look-up<span class="link">{pro.lok}</span></a></h3>
 
 <p> We propose that names referred in preconditions and postconditions are looked up as if they appeared 
     in a <code>decltype</code> in a <em>trailing-return-type</em>,
@@ -275,7 +304,7 @@ public:
 		
 
 
-<h3><a id="pro.ret">3.4. Naming the return value <span class="link">{pro.ret}</span></a></h3>
+<h3><a id="pro.ret">3.5. Naming the return value <span class="link">{pro.ret}</span></a></h3>
 
 <p> It is possible to name the return value (or reference) in the postcondition, except for one situation: 
     when we use a return placeholder type and do not provide the definition from which the type could be deduced:</p>
@@ -289,7 +318,7 @@ public:
     </p>	
 		
 
-<h3><a name="pro.ptr">3.5. Indirect function calls
+<h3><a name="pro.ptr">3.6. Indirect function calls
         <span class="link">{pro.ptr}</span></a></h3>
 
 
@@ -334,7 +363,7 @@ fp(1);   <em>// precondition is checked in Eval_and_abort mode</em>
 </pre>
 	
 	
-<h3><a name="pro.vir">3.6. Virtual functions
+<h3><a name="pro.vir">3.7. Virtual functions
         <span class="link">{pro.vir}</span></a></h3>
 
 <p> Contract annotations may appear in virtual member function declarations,
@@ -449,7 +478,7 @@ struct Deriv : Base {
 		</p> 		
 
 
-<h4><a name="pro.vir.tmp">3.6.1 Class templates
+<h4><a name="pro.vir.tmp">3.7.1 Class templates
         <span class="link">{pro.vir.tmp}</span></a></h4>
 				
 <p> The same restrictions for virtual functions apply for class templates, except that compilation errors might be deferred till 
@@ -473,7 +502,7 @@ Deriv&lt;Base1&gt; d1 {}; <em>// ok</em>
 Deriv&lt;Base2&gt; d2 {}; <em>// compiler error</em>
 </pre>	
 
-<h4><a name="pro.vir.two">3.6.2 Inheriting multiple contracts
+<h4><a name="pro.vir.two">3.7.2 Inheriting multiple contracts
         <span class="link">{pro.vir.two}</span></a></h4>
 
 <p> In case a member function overrides two functions from two base classess
@@ -501,7 +530,7 @@ struct Deriv : Base1, Base2 {
 </pre>
 
 	
-<h3><a name="pro.imm">3.7. Contract annotations and the immediate context
+<h3><a name="pro.imm">3.8. Contract annotations and the immediate context
     <span class="link">{pro.imm}</span></a></h3>
 
 
@@ -532,7 +561,7 @@ static_assert(!has_f&lt;std::complex&lt;float&gt;&gt;); <em>// ill-formed: has_f
     </p>
 
 
-<h3><a name="pro.end">3.8. <code>abort()</code> vs <code>terminate()</code> <span class="link">{pro.end}</span></a></h3>
+<h3><a name="pro.end">3.9. <code>abort()</code> vs <code>terminate()</code> <span class="link">{pro.end}</span></a></h3>
 
 <p> In this proposal, throwing from the predicate calls <code>std::terminate()</code> while a failed runtime check
     aborts the application even more abruptly: close to calling <code>std::abort()</code>, but we do not require 
@@ -562,7 +591,7 @@ static_assert(!has_f&lt;std::complex&lt;float&gt;&gt;); <em>// ill-formed: has_f
 <p> Moreover, <code>std::terminate()</code> is not available in freestanding implementations. </p>
 
 
-<h3><a name="pro.log">3.9. No runtime error message<span class="link">{pro.log}</span></a></h3>
+<h3><a name="pro.log">3.10. No runtime error message<span class="link">{pro.log}</span></a></h3>
 
 <p> This revision of the paper does not require or encourage
     any error message to be displayed to standard diagnostic stream, or anywhere
@@ -578,7 +607,7 @@ static_assert(!has_f&lt;std::complex&lt;float&gt;&gt;); <em>// ill-formed: has_f
     as it takes a single instruction and does not depend on program state.</p>
 		
 
-<h3><a name="pro.dec">3.10. Contract annotations upon the first and subsequent declarations<span class="link">{pro.dec}</span></a></h3>
+<h3><a name="pro.dec">3.11. Contract annotations upon the first and subsequent declarations<span class="link">{pro.dec}</span></a></h3>
 
 <p> We require that if a given function <code>f</code> has declared preconditions and postconditions, they shall be visible in the first
     declaration of <code>f</code> in a translation unit (TU): otherwise the program is ill-formed. Subsequent declarations must omit 
@@ -615,10 +644,197 @@ int select(int i, int j)   <em>// second declaration</em>
 		redeclarations is because this way we avoid the reason to define the notion of being "odr-identical".</p>
 
 
+
+<h3><a id="pro.arg">3.12. Non-reference parameters mentioned in postconditions must be <code>const</code><span class="link">{pro.arg}</span></a></h3>
+
+
+<p> If a non-reference function parameter is named in a postcondition, that parameter shall be declared <code>const</code> in every declaration of
+    the function.</p> 
+		
+<pre>
+int generate(int lo, int hi)              <em>// error: lo and hi should be declared const</em>
+  PRE(lo &lt;= hi)
+  POST(r: lo &lt;= r &amp;&amp; r &lt;= hi);
+	
+int generate(int&amp; lo, const int&amp; hi)      <em>// ok: lo and hi are references</em>
+  PRE(lo &lt;= hi)
+  POST(r: lo &lt;= r &amp;&amp; r &lt;= hi);
+	
+int generate(int lo, int hi)              <em>// ok: lo and hi not referenced in a postcondition</em>
+  PRE(lo &lt;= hi)
+  POST(r: r &gt;= 0);
+	
+int generate(const int lo, const int hi)  <em>// ok: lo and hi are declared const</em>
+  PRE(lo &lt;= hi)
+  POST(r: lo &lt;= r &amp;&amp; r &lt;= hi);
+</pre>
+ 
+<p> This is to prevent the situation where a contract check would return an answer
+    incompatible with the programmer expectations: a false positive or a false negative.
+		This problem has been explained in detail in <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2388r4.html">[P2388R4]</a>
+    and <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2466r0.html">[P2466R0]</a>.
+		Here, we only show an example that demonstrates the issue:</p>
+		
+<pre><em>// declaration that the user sees:</em>
+int generate(int lo, int hi)
+  PRE(lo &lt;= hi)
+  POST(r: lo &lt;= r &amp;&amp; r &lt;= hi);
+
+<em>// definition that only the author sees:</em>
+int generate(int lo, int hi)
+{
+  int result = lo;
+  while (++lo &lt;= hi) <em>// note: lo modified</em>
+  {
+    if (further())
+      ++result;      <em>// incremented slower than lo</em>
+  }
+  return result;     <em>// at this point result &lt; lo</em>
+}
+
+<em>// usage:</em>
+int min = 1;
+int max = 10;
+
+int r = generate(min, max);   <em>// postcondition check fails</em>
+assert(min &lt;= r &amp;&amp; r &lt;= max); <em>// even though this assertion is satisfied</em>
+</pre>
+
+<p> How is this problem addressed in other languages?
+    In D, this problem has been ignored: postconditions like the one above give false positive or false negative results.
+		In ADA this problem does not occur: this is due to the way the function arguments are designed. In ADA, for each 
+		function argument, the programmer has to specify if it is IN or OUT or INOUT. The OUT and INOUT parameters correspond to reference
+    parameters in C++, so there is no problem here. The IN parameters, on the other hand, are immutable, so there is no question of 
+    changing them inside the function: IN parameters correspond to <code>const</code> by-value parameters in C++.
+    SG21 decided to follow what ADA does, in the following poll on 2022-03-10.		
+</p>	
+
+<p> Poll: Adopt a change based on option #2 from the paper 
+    <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p2521r1.html">[P2521R1]</a> section 
+    <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p2521r1.html#con.arg">4.3</a>: 
+    if the postcondtion uses a non-reference parameter: require it to be const objects.</p>
+
+<table class="poll">
+<tr><td>SF</td><td>F</td><td>N</td><td>A</td><td>SA</td></tr>
+<tr><td>5</td><td>6</td><td>0</td><td>1</td><td>0</td></tr>
+</table>
+	
+<p> This decision has the following consequences. First, in the MVP contracts, the programers have the 
+    following options when they need their postconditions to refer to non-reference function parameters:</p>
+	
+<ol>
+  <li>Do not reflect this postcondition in a contract annotation. (Do what you do in C++20, put it in a comment...)</li>
+	<li>Add the otherwise redundant <code>const</code> qualifier.</li>
+</ol>
+
+<p> Second, this implies that once a postcondition starts reference a non-reference function parameter, 
+    the language rules that govern this parameter change: now the additional <code>const</code> qualifier
+		makes a difference: programmers can no longer choose to add it or omit it between declarations:
+		</p>
+		
+<pre>
+void f(int i) POST(i != 0);       <em>// error: i must be const </em>
+
+void g(const int i) POST(i != 0);
+void g(int i) {}                  <em>// error: missing const for i in definition</em>
+
+void h(const int i) POST(i != 0);
+void h(const int i) {} 
+void h(int i);                    <em>// error: missing const for i in redeclaration</em>
+</pre>
+
+<p> This choice guarantees that compiler statically prevents any modifications to these functin parameters: both in the function body
+    and in the contract predicates: </p>
+	
+<pre>
+void f(const int i) 
+  POST(++i != 0)                 <em>// error: cannot mutate a const object</em>
+  POST(is_const_v&lt;decltype(i)&gt;); <em>// postcondition satisfied</em>
+
+void f(const int i)
+{
+  ++i;                           <em>// error: cannot mutate a const object</em>
+}	
+</pre>
+
+<p> One consequence of this is that you cannot use move-semantics for function parameters referenced in postconditions:</p>
+	
+<pre>
+void f(unique_ptr&lt;int&gt; i) 
+  PRE(i)                        <em>// ok (no restrictions for preconditions)</em>
+{
+  return i;                     <em>// ok: move</em>
+}
+
+void g(const unique_ptr&lt;int&gt; i) <em>// const is now required</em> 
+  PRE(i)              
+  POST(i)
+{
+  ++*i;
+  return i;                     <em>// error: copy constructor inaccessible</em>
+}
+</pre>	
+	
+<p>The additional <code>const</code> qualifier still does not affect the type of the function:</p>
+
+<pre>
+int f(const int i) 
+  POST(r: r != i);
+
+int (*fp)(int) = &amp;f; <em>// ok</em>
+</pre>
+
+
+
+<h4><a id="pro.arg.out">3.12.1 Can the problem be avoided by inspecting function arguments instead?<span class="link">{pro.arg.out}</span></a></h4>
+
+
+<p> It has been suggested that the problem with function parameters referenced in postconditions could be avoided if we checked the values of function 
+    arguments used to initialize the function parameters, instead of checking the parameters themselves:</p>
+		
+<pre>
+int f(int i) POST(r: r != i);
+
+int a = 1;
+int b = f(a); <em>// in postcondition read value of `a` rather than value of `i`</em>
+</pre>
+
+<p> This idea will not work for more complex cases, unless a copy of the argument is made on the side. 
+    First, you cannot assume that the value of the argument remains unchanged as the function is executed, due to aliasing problem.
+		</p>
+
+<pre>
+int f(int a, int&amp; ref)
+  POST(r: r != a)
+{
+  --ref;
+  return a - 1;
+}
+
+int i = 1;
+f(i, i);   <em>// at the end of f(), `i` has different value than `a`</em>
+</pre>
+	
+<p> Another problem with the proposed idea is that we may not have the function argument of the same type as the function parameter:</p>
+
+<pre>
+string f(string s)
+  POST(r: s.empty() || r == s);
+
+auto x = "text"; <em>// type of `x` is `const char*`</em>
+f(x);            <em>// cannot call `x.empty()`</em>
+</pre> 	
+	
+
+
+
 <h2><a id="con">4. Controversial aspects <span class="link">{con}</span></a></h2>	
+
 
 <p>This section lists points of controversy inside SG21 for the recent contract design. For each of these points, we
    require a poll to be taken, to determine the group direction.</p>
+
+
 
 <h3><a id="con.syn">4.1. The choice of syntax<span class="link">{con.syn}</span></a></h3>
 
@@ -673,6 +889,72 @@ int select(int i, int j)   <em>// second declaration</em>
 		syntax for one of the future extensions: making copies of function arguments for use in postconditions.
 
 
+
+<h4><a id="con.syn.arg">4.1.1 The capacity to copy function arguments (post MVP)<span class="link">{con.syn.arg}</span></a></h4>
+
+<p> This section describes a future extension, not proposed for the MVP: the ability to make copies of function arguments (or parts thereof) 
+    upon user request, to be later referenced in postconditions. However, the capability to handle this extension is related to the choice of syntax.</p>
+
+<p> <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2461r1.pdf">[P2461R1]</a> proposes the following syntax:
+		</p>
+
+<pre>
+int generate(int lo, int hi)
+  pre{ lo &lt;= hi }
+  post[lo, hi](r){ lo &lt;= r &amp;&amp; r &lt;= hi }; <em>// `hi` and `lo` refer to internal copies of function parameters.</em>
+</pre>
+
+<p> The lambda-introducer syntax should make it immediately clear, even for the uninitiated programmers, that a copy of function parameters is being made.</p>
+
+<p> The quasi-attribute notation also allows this as a future extension, however this would require a new notation, which comes with a complexity and an aesthetical cost:</p>
+
+<pre>
+int generate(int lo, int hi)
+  [[pre: lo &lt;= hi ]]
+  [[post r, old_lo = lo, old_hi = hi: old_lo &lt;= r &amp;&amp; r &lt;= old_hi ]];
+	
+// or some alternate notation
+
+int generate(int lo, int hi)
+  [[pre: lo &lt;= hi ]]
+  [[post r, =lo, =hi: lo &lt;= r &amp;&amp; r &lt;= hi ]];
+	
+// or a notation using lambda-capture:
+
+int generate(int lo, int hi)
+  [[pre: lo &lt;= hi ]]
+  [[post [lo, hi] r: lo &lt;= r &amp;&amp; r &lt;= hi ]];
+</pre>  
+
+<p> Thus, the decision how to address the issue of by-value arguments in postconditions is somewhat tied to the choice of syntax.
+    But perhaps not as much as one might think at first.</p>
+
+<p> It should be noted <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2461r1.pdf">[P2461R1]</a> offers more motivation than
+    the quasi-lambda syntax than solving the problem of function arguments in postconditions. The notable exmple is the support for "oldof" values:</p>
+
+<pre>
+void vector::push_back(T const&amp; val)
+  POST(r: size() == OLDOF(size()) + 1);
+	
+// in P2461R1, post-MVP:
+
+void vector::push_back(T const&amp; val)
+  post [old_size = size()]{ size() == oldof_size + 1 };
+
+// in P2388R4, post-MVP:
+
+void vector::push_back(T const&amp; val)
+  [[post old_size = size(): size() == old_size + 1]];
+	
+// or:
+
+void vector::push_back(T const&amp; val)
+  [[post [old_size = size()]: size() == old_size + 1]];
+</pre>	
+
+
+
+
 <h3><a id="con.eff">4.2. Removal and duplication of side effects in predicates<span class="link">{con.eff}</span></a></h3>
 
 
@@ -715,184 +997,6 @@ int main() {
 		not considered in this paper.</p>		
 
 
-<h3><a id="con.arg">4.3. Function parameters in postconditions<span class="link">{con.arg}</span></a></h3>
-
-
-<p> The model that we used for contract annotations is simple: we execute a predicate at certain specified points in time 
-    (for instance, just before the function call for preconditions) and the predicate observes the state of the program at that moment.
-		This model works intuitively except for one case: when function:</p>
-	
-<ol>
-<li>has a non-reference parameter, and</li>
-<li>this parameter is referenced in the postcondition, and</li>
-<li>this parameter is modified inside the function.</li>
-</ol>	
-		
-<p> This problem has been explained in detail in <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2388r4.html">[P2388R4]</a>
-    and <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2466r0.html">[P2466R0]</a>.
-		Here, we only show an example that demonstrates the issue:</p>
-		
-<pre><em>// declaration that the user sees:</em>
-int generate(int lo, int hi)
-  PRE(lo &lt;= hi)
-  POST(r: lo &lt;= r &amp;&amp; r &lt;= hi);
-
-<em>// definition that only the author sees:</em>
-int generate(int lo, int hi)
-{
-  int result = lo;
-  while (++lo &lt;= hi) <em>// note: lo modified</em>
-  {
-    if (further())
-      ++result;      <em>// incremented slower than lo</em>
-  }
-  return result;     <em>// at this point result &lt; lo</em>
-}
-
-<em>// usage:</em>
-int min = 1;
-int max = 10;
-
-int r = generate(min, max);   <em>// postcondition check fails</em>
-assert(min &lt;= r &amp;&amp; r &lt;= max); <em>// even though this is satisfied</em>
-</pre>
-
-<p> How is this problem addressed in other languages?
-    In D, this problem has been ignored: postconditions like the one above give false positive or false negative results.
-		In ADA this problem does not occur: this is due to the way the function arguments are designed. In ADA, for each 
-		function argument, the programmer has to specify if it is IN or OUT or INOUT. The OUT and INOUT parameters correspond to reference
-    parameters in C++, so there is no problem here. The IN parameters, on the other hand, are immutable, so there is no question of 
-    changing them inside the function: IN parameters correspond to <code>const</code> by-value parameters in C++.		
-</p>	
-	
-	
-<p> How can this issue be addressed? </p>
-
-<ol>
-<li><a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p0542r5.html">[P0542R5]</a> proposed to do what D does:
-    it called this situation undefined behavior. </li>
-<li><a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2388r4.html">[P2388R4]</a> and <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2461r1.pdf">[P2461R1]</a> proposes to imitate the solution from ADA: if the postcondition uses the non-reference prameters: require them to be <code>const</code> objects.</li>
-</ol>
-
-<p> Additionally, <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2461r1.pdf">[P2461R1]</a> proposes for the future revisions the ability
-    for the programmer to request that copies of designated function parameters be made. These copies could also be referenced when
-		the postcondition is evaluated:
-		</p>
-
-<pre>
-int generate(int lo, int hi)
-  pre{ lo &lt;= hi }
-  post[lo, hi](r){ lo &lt;= r &amp;&amp; r &lt;= hi };
-</pre>
-
-<p> The lambda-introducer syntax should make it immediately clear, even for the uninitiated programmers, that a copy of function parameters is being made.</p>
-
-<p> The quasi-attribute notation also allows this as a future extension, however this would require a new notation, which comes with a complexity and an aesthetical cost:</p>
-
-<pre>
-int generate(int lo, int hi)
-  [[pre: lo &lt;= hi ]]
-  [[post r, old_lo = lo, old_hi = hi: old_lo &lt;= r &amp;&amp; r &lt;= old_hi ]];
-	
-// or some alternate notation
-
-int generate(int lo, int hi)
-  [[pre: lo &lt;= hi ]]
-  [[post r, =lo, =hi: lo &lt;= r &amp;&amp; r &lt;= hi ]];
-</pre>  
-
-<p> Thus, the decision how to address the issue of by-value arguments in postconditions is somewhat tied to the choice of syntax.
-    But perhaps not as much as one might think at first.</p>
-
-<p> We could allow postconditions to reference <code>const</code> by-value parameters in postconditions in the MVP. 
-    This would address a reasonable subset of real-life use cases immediately, and at the same time not prevent the addition of 
-    "copies on demand" in the future. We could go even further and require the compiler to do implicit copies for trivially-copyable
-    types. This would create a "hybrid" solution that is the least intrusive for the programmers:</p>
-
-<pre>int generate(int lo, int hi)
-  PRE(lo &lt;= hi)
-  POST(r: lo &lt;= r &amp;&amp; r &lt;= hi)  <em>// ok: we can copy ints implicitly</em>
-{ <em>/* ... */</em> }
-
-BigInt generate(BigInt const lo, BigInt const hi)
-  PRE(lo &lt;= hi)
-  POST(r: lo &lt;= r &amp;&amp; r &lt;= hi)  <em>// ok: can safely inspect original objects </em>
-{ <em>/* ... */</em> }	
-
-BigInt generate(BigInt lo, BigInt hi)
-  PRE(lo &lt;= hi)
-  POST(r: lo &lt;= r &amp;&amp; r &lt;= hi)  <em>// sorry: please, wait for C++29 </em>
-{ <em>/* ... */</em> }	
-</pre>	
-
-<p> Thus, the first question in this section is actually: how many cases of function arguments can we afford to handle in the MVP:</p>
-
-<ol>
-  <li>Disallow function arguments in postconditions: even the reference ones.</li>
-	<li>Disallow only by-value function arguments in postconditions: references are allowed.</li>
-	<li>Allow reference and const function arguments in postconditions. </li>
-	<li>Allow reference and const and trivially-copyable function arguments in postconditions. </li>
-</ol>
-
-<p>Another question is a slight difference between <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2388r4.html">[P2388R4]</a> or
-    <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2461r1.pdf">[P2461R1]</a>. The former paper allows by-value parameter to omit
-		<code>const</code> on the function decaration, but only requires it on function definition:<p>
-		
-<pre>
-// P2388R4:
-
-int generate(int lo, int hi)
-  PRE(lo &lt;= hi)
-  POST(r: lo &lt;= r &amp;&amp; r &lt;= hi);           <em>// ok: just a declaration</em>
-
-int generate(int const lo, int const hi) <em>// ok: prameters are const in definition</em>
-{ <em>/* ... */</em> }
-</pre>
-
-<p> The only thing we need here is that the compiler will ultimately prevent any modifications in the function body.
-    In contrast, <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2461r1.pdf">[P2461R1]</a> 
-		requires that even the declarations have function arguments declared with <code>const</code>, even though programmers
-		have been taught for years that the addition or the omission of <code>const</code> in by-value arguments in function
-		declarations has no effect. 
-</p>
-
-<p> One reason for this additional restriction, is that the quasi-lambda solution may require certain mangling of function names in the presence of
-    lambdas, and the lambda type that captures by reference may be affected based on whether by-value function arguments are const or not:</p>
-
-<pre>
-int generate(int lo, int hi)
-  pre{ lo &lt;= hi }
-  post <em>/*[&amp;]*/</em> (r){ r: lo &lt;= r &amp;&amp; r &lt;= hi }; <em>// differemt mangling</em>
-	
-int generate(int const lo, int const hi)
-  pre{ lo &lt;= hi }
-  post <em>/*[&amp;]*/</em> (r){ r: lo &lt;= r &amp;&amp; r &lt;= hi }; <em>// differemt mangling</em>
-</pre>
-
-<p> So the trade-off here is the ability to declare lambda-like copies of arguments at the cost introducing new rules for <code>const</code>
-    by-value arguments in function declarations.</p>
-
-<p> An additional question that one might want to answer is that if we allowed in postconditions arguments 
-    that are either references or const or trivially-copyable, are the remaining cases sufficient to 
-		motivate the addition of quasi-lambda syntax?<p>
-
-<p> It should be noted <a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2461r1.pdf">[P2461R1]</a> offers more motivation than
-    the quasi-lambda syntax than solving the problem of function arguments in postconditions. The notable exmple is the support for "oldof" values:</p>
-
-<pre>
-void vector::push_back(T const&amp; val)
-  POST(r: size() == OLDOF(size()) + 1);
-	
-// in P2461R1, post-MVP:
-
-void vector::push_back(T const&amp; val)
-  post [old_size = size()]{ size() == oldof_size + 1 };
-
-// in P2388R4, post-MVP:
-
-void vector::push_back(T const&amp; val)
-  [[post old_size = size(): size() == old_size + 1]];
-</pre>	
 	
 	<!--
 <h2><a name="ope">5. Open issues
@@ -948,9 +1052,11 @@ void vector::push_back(T const&amp; val)
   <li>[P2487R0] — Andrzej Krzemieński, "Attribute-like syntax for contract annotations" <br>
       (<a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2487r0.html">http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p2487r0.html</a>).
       </li>		
-			
-			
-			
+	
+  <li>[P2521R1] — Gašper Ažman, Joshua Berne, Bronek Kozicki, Andrzej Krzemieński, Ryan McDougall, Caleb Sunstrum, "Contract support — Working Paper" (the previous revision of this paper)<br>
+      (<a href="http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p2521r1.html">http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2022/p2521r1.html</a>).
+      </li>	
+	
 			
 </ul>
 
