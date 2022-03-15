@@ -335,16 +335,16 @@ fp(1);        <em>// precondition is checked in Eval_and_abort mode</em>
 </pre>
 
 <p> In other words, contract annotations are not part of function type.
-    Thanks to this decision, you can write code like:
+    This allows dynamically selecting behavior at runtime based on inputs.
     </p>
 
-<pre>int fast(int i) PRE(i &gt; 0);
-int slow(int i) PRE(true);  <em>// no precondition</em>
+<pre>int fast(int i) PRE(i &gt; 0);  <em>// fast, but has a narrow contract</em>
+int slow(int i) PRE(true);   <em>// wide contract, but slow</em>
 
 int f(int i)
 {
   int (*fp) (int) = i &gt; 0 ? fast : slow;
-  return fp(i);  <em>// if fast() is called, its precondition is checked</em>
+  return fp(i);   <em>// if fast() is called, its precondition is checked</em>
 }
 </pre>
 
