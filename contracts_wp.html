@@ -122,6 +122,8 @@ td { text-align: left;  padding-left: 0.4em; border: none;  padding-right: 0.4em
 	<li>Non-reference function parameters named in the postcondition must be declared <code>const</code>. See section <a href="#pro.arg">{pro.arg}</a>.</li>
 	<li>Explained why reading the value of function arguments instead of function parameters cannot solve the problem of non-reference function parameters 
       referenced in postconditions. See section <a href="#pro.arg.out">{pro.arg.out}</a>.</li>
+	<li>Changed the motivation for adding side effect removal: it is not efficiency, it is the intention to discourage programmers
+	    from deliberately putting side effects in contract annotations.</li>
 </ol>
 
 
@@ -968,7 +970,10 @@ void vector::push_back(T const&amp; val)
 		once in the caller, and once inside the function body. We may want to enable such implementation strategies.		
 		The consequence for the programmer is that when the predicate has side effects, these effects occur twice.</p>
 
-<p> For performance reasons, an implementation may want not to evaluate the predicate, if it already knows what its result would be.
+<p> Putting side effects in contract annotaitons and later relying on them is a practice that we would like actively discourage.
+    As of today, we do not know how to do it statically (so that each such side effect would be reported as a compiler error).
+		For the purpose of discouraging programmers from putting observable side effects in their contract annotations,
+		an implementation might want not to evaluate the predicate, if it already knows what its result would be.
     This can happen when a function that produces a value has sufficiently similar postcondition <code>p</code> to the precondition of another function
     that subsequently consume the same value, and we do not see the body of <code>p</code>:</p>
 		
